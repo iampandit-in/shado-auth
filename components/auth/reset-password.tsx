@@ -26,11 +26,15 @@ import { InputGroup, InputGroupAddon } from "@/components/ui/input-group";
 import { EyeClosedIcon, EyeIcon } from "@phosphor-icons/react";
 import { authClient } from "@/lib/auth-client";
 import LoadingButton from "../utils/loading-button";
+import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 const formSchema = z
   .object({
     password: z.string().min(8, "Password must be at least 8 characters."),
-    confirmPassword: z.string().min(8, "Password must be at least 8 characters."),
+    confirmPassword: z
+      .string()
+      .min(8, "Password must be at least 8 characters."),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
@@ -48,11 +52,21 @@ export default function ResetPasswordForm() {
     },
   });
 
+  const router = useRouter();
+  const token = useSearchParams().get("token");
+
   async function onSubmit(data: z.infer<typeof formSchema>) {
     try {
       setLoading(true);
+      if (!token) {
+        toast.error("Error", {
+          description: "Invalid token",
+        });
+        return;
+      }
       const { error } = await authClient.resetPassword({
         newPassword: data.password,
+        token,
       });
 
       if (error) {
@@ -65,6 +79,7 @@ export default function ResetPasswordForm() {
       toast.success("Success", {
         description: "Your password has been reset successfully.",
       });
+      router.push("/sign-in");
     } catch {
       toast.error("Error", {
         description: "An unexpected error occurred",
@@ -75,7 +90,7 @@ export default function ResetPasswordForm() {
   }
 
   return (
-    <Card className="w-full sm:max-w-md mx-auto">
+    <Card className="w-full max-w-sm">
       <CardHeader>
         <CardTitle>Reset password</CardTitle>
         <CardDescription>Create a new strong password</CardDescription>

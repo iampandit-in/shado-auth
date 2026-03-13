@@ -25,8 +25,8 @@ export function AppearanceSettings() {
   if (!mounted) return null;
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="w-full max-w-md">
+      <CardHeader className="border-b">
         <CardTitle>Appearance</CardTitle>
         <CardDescription>
           Customize how Shadospace looks on your device.
@@ -36,7 +36,7 @@ export function AppearanceSettings() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {theme === "dark" ? <MoonIcon size={20} /> : <SunIcon size={20} />}
-            <div className="space-y-0.5">
+            <div className="space-y-0.5 ml-2">
               <Label htmlFor="dark-mode">Dark Mode</Label>
               <p className="text-xs text-muted-foreground">
                 Toggle between light and dark themes.

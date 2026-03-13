@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProfileSettings } from "@/components/account/profile-settings";
 import { SecuritySettings } from "@/components/account/security-settings";
@@ -9,7 +8,7 @@ import { PaletteIcon, ShieldCheckIcon, UserIcon } from "@phosphor-icons/react";
 
 export default function AccountPage() {
   return (
-    <div className="container mt-24 max-w-4xl">
+    <div className="container mt-20 mx-auto">
       <div className="space-y-0.5 mb-8 text-center md:text-left">
         <h2 className="text-2xl font-semibold tracking-tight font-heading">
           Account Settings

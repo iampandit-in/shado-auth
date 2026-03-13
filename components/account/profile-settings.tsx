@@ -23,6 +23,11 @@ import {
 import { Input } from "@/components/ui/input";
 import LoadingButton from "../utils/loading-button";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { useRouter } from "next/navigation";
+import { Spinner } from "../ui/spinner";
+import { Button } from "../ui/button";
+import { upload } from "@vercel/blob/client";
+import { CameraIcon, TrashIcon } from "@phosphor-icons/react";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
@@ -30,8 +35,12 @@ const profileSchema = z.object({
 });
 
 export function ProfileSettings() {
+  const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
   const [loading, setLoading] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   const form = useForm<z.infer<typeof profileSchema>>({
     resolver: zodResolver(profileSchema),
     values: {
@@ -39,6 +48,52 @@ export function ProfileSettings() {
       image: session?.user?.image || "",
     },
   });
+
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Invalid file type", {
+        description: "Please upload an image file.",
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File too large", {
+        description: "Image must be less than 5MB.",
+      });
+      return;
+    }
+
+    try {
+      setUploading(true);
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/avatar/upload",
+      });
+
+      form.setValue("image", blob.url);
+      toast.success("Image uploaded successfully");
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("Upload failed", {
+        description: "There was an error uploading your image.",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    form.setValue("image", "");
+    toast.success("Image removed", {
+      description: "Don't forget to save your changes.",
+    });
+  };
 
   async function onSubmit(values: z.infer<typeof profileSchema>) {
     try {
@@ -54,8 +109,8 @@ export function ProfileSettings() {
         });
         return;
       }
-
       toast.success("Profile updated");
+      router.refresh();
     } catch {
       toast.error("Error", {
         description: "An unexpected error occurred",
@@ -68,8 +123,8 @@ export function ProfileSettings() {
   if (isPending) return null;
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="w-full max-w-md">
+      <CardHeader className="border-b">
         <CardTitle>Profile</CardTitle>
         <CardDescription>
           Update your personal information and how others see you.
@@ -79,23 +134,62 @@ export function ProfileSettings() {
         <form
           id="profile-form"
           onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-6"
+          className="space-y-2"
         >
-          <div className="flex items-center gap-4">
-            <Avatar className="h-20 w-20">
+          <div className="flex items-center gap-6">
+            <Avatar className="h-20 w-20 shrink-0">
               <AvatarImage
+                className="rounded-none"
                 src={form.watch("image") || session?.user?.image || ""}
               />
               <AvatarFallback className="text-xl">
                 {session?.user?.name?.charAt(0) || "U"}
               </AvatarFallback>
             </Avatar>
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Profile Picture</p>
-              <p className="text-xs text-muted-foreground leading-normal">
-                Format: URL. We currently support image URLs.
-              </p>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Profile Picture</p>
+                <p className="text-xs text-muted-foreground leading-normal">
+                  Max size: 5MB. Format: PNG, JPG, GIF.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                >
+                  {uploading ? (
+                    <Spinner className="mr-2 h-3 w-3" />
+                  ) : (
+                    <CameraIcon size={16} className="mr-2" />
+                  )}
+                  {uploading ? "Uploading..." : "Change Image"}
+                </Button>
+                {form.watch("image") && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="h-8"
+                    onClick={handleRemoveImage}
+                  >
+                    <TrashIcon size={16} className="mr-2" />
+                    Remove
+                  </Button>
+                )}
+              </div>
             </div>
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept="image/*"
+              onChange={handleFileChange}
+            />
           </div>
 
           <FieldGroup>
@@ -129,6 +223,9 @@ export function ProfileSettings() {
                     placeholder="https://example.com/avatar.jpg"
                     aria-invalid={fieldState.invalid}
                   />
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    You can also paste a direct image URL here.
+                  </p>
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
                   )}
@@ -138,7 +235,7 @@ export function ProfileSettings() {
             <Field>
               <FieldLabel>Email</FieldLabel>
               <Input
-                value={session?.user?.email}
+                value={session?.user?.email ?? ""}
                 disabled
                 className="bg-muted/50"
               />
@@ -149,11 +246,11 @@ export function ProfileSettings() {
           </FieldGroup>
         </form>
       </CardContent>
-      <CardFooter className="border-t pt-6 bg-muted/5">
+      <CardFooter className="">
         <LoadingButton
           loading={loading}
           form="profile-form"
-          className="w-fit ml-auto"
+          className="w-fit cursor-pointer ml-auto"
         >
           Save Changes
         </LoadingButton>

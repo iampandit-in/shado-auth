@@ -27,13 +27,19 @@ import { EyeClosedIcon, EyeIcon } from "@phosphor-icons/react";
 import LoadingButton from "../utils/loading-button";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Spinner } from "../ui/spinner";
+import { upload } from "@vercel/blob/client";
+import { CameraIcon, TrashIcon } from "@phosphor-icons/react";
 
 const formSchema = z
   .object({
     name: z.string().min(3, "Name must be at least 3 characters"),
     email: z.string().email("Invalid email address"),
     password: z.string().min(8, "Password must be at least 8 characters."),
-    confirmPassword: z.string().min(8, "Password must be at least 8 characters."),
+    confirmPassword: z
+      .string()
+      .min(8, "Password must be at least 8 characters."),
     image: z.string().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -44,7 +50,10 @@ const formSchema = z
 export default function SignUpForm() {
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -56,10 +65,55 @@ export default function SignUpForm() {
     },
   });
 
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Invalid file type", {
+        description: "Please upload an image file.",
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File too large", {
+        description: "Image must be less than 5MB.",
+      });
+      return;
+    }
+
+    try {
+      setUploading(true);
+      const blob = await upload(file.name, file, {
+        access: "public",
+        handleUploadUrl: "/api/avatar/upload",
+        clientPayload: "signup",
+      });
+
+      form.setValue("image", blob.url);
+      toast.success("Image uploaded successfully");
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("Upload failed", {
+        description: "There was an error uploading your image.",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    form.setValue("image", "");
+    toast.success("Image removed");
+  };
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setLoading(true);
-      const { data, error } = await authClient.signUp.email({
+      const { error } = await authClient.signUp.email({
         name: values.name,
         email: values.email,
         password: values.password,
@@ -74,9 +128,9 @@ export default function SignUpForm() {
       }
 
       toast.success("User created successfully", {
-        description: "You can now sign in",
+        description: "Verify your email to access your account",
       });
-      router.push("/sign-in");
+      router.push("/account");
     } catch (error) {
       console.error("Sign up error:", error);
       toast.error("Failed to create user", {
@@ -88,7 +142,7 @@ export default function SignUpForm() {
   }
 
   return (
-    <Card className="w-full sm:max-w-md mx-auto">
+    <Card className="w-full max-w-sm">
       <CardHeader>
         <CardTitle>Sign Up</CardTitle>
         <CardDescription>
@@ -96,8 +150,63 @@ export default function SignUpForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form id="signup-form" onSubmit={form.handleSubmit(onSubmit)}>
-          <FieldGroup>
+        <form
+          id="signup-form"
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-4"
+        >
+          <div className="flex items-center gap-4 mb-4">
+            <Avatar className="h-18 w-18 rounded-none shrink-0">
+              <AvatarImage
+                className="rounded-none object-cover"
+                src={form.watch("image") || ""}
+              />
+              <AvatarFallback className="text-lg">
+                <CameraIcon size={24} />
+              </AvatarFallback>
+            </Avatar>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                >
+                  {uploading ? (
+                    <Spinner className="mr-2 h-3 w-3" />
+                  ) : (
+                    <CameraIcon size={16} className="mr-2" />
+                  )}
+                  {uploading ? "Uploading..." : "Add Avatar"}
+                </Button>
+                {form.watch("image") && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="h-8"
+                    onClick={handleRemoveImage}
+                  >
+                    <TrashIcon size={16} />
+                  </Button>
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Optional: Square PNG or JPG. Max 5MB.
+              </p>
+            </div>
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept="image/*"
+              onChange={handleFileChange}
+            />
+          </div>
+          <FieldGroup className="gap-2">
             <Controller
               name="name"
               control={form.control}

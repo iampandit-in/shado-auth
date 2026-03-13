@@ -22,7 +22,7 @@ export default function UserButton() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         {isPending ? (
-          <Skeleton className="h-8 w-8 rounded-full animate-pulse" />
+          <Skeleton className="h-8 w-8 rounded-none animate-pulse" />
         ) : (
           data?.user && (
             <Avatar className="cursor-pointer">
@@ -40,7 +40,8 @@ export default function UserButton() {
             Account
           </DropdownMenuItem>
           <DropdownMenuItem>Settings</DropdownMenuItem>
-          <DropdownMenuItem asChild>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem>
             <Button
               onClick={async () => {
                 await authClient.signOut({

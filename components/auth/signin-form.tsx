@@ -28,7 +28,6 @@ import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import LoadingButton from "../utils/loading-button";
 import { redirect, useRouter } from "next/navigation";
-import { Spinner } from "../ui/spinner";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -80,7 +79,7 @@ export default function SignInForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm mx-auto">
+    <Card className="w-full max-w-sm">
       <CardHeader>
         <CardTitle>Sign In</CardTitle>
         <CardDescription>
@@ -168,7 +167,12 @@ export default function SignInForm() {
           </div>
         </div>
         <Button
-          onClick={() => authClient.signIn.social({ provider: "google" })}
+          onClick={() =>
+            authClient.signIn.social({
+              provider: "google",
+              callbackURL: "/account",
+            })
+          }
           variant={"outline"}
           className="w-full cursor-pointer"
         >

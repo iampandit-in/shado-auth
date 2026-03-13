@@ -5,8 +5,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
-
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -66,7 +64,7 @@ export default function ForgotPasswordForm() {
   }
 
   return (
-    <Card className="w-full sm:max-w-md mx-auto">
+    <Card className="w-full max-w-sm">
       <CardHeader>
         <CardTitle>Forgot password</CardTitle>
         <CardDescription>
